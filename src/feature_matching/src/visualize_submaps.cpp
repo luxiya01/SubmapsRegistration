@@ -37,27 +37,26 @@ int main(int argc, char **argv)
 
     // Visualization
     pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    viewer->registerKeyboardCallback(&keyboardEventOccurred, (void*) NULL);
     viewer->setBackgroundColor(0.0, 0.0, 0.0);
 
-    // Save submaps to disk
     PointCloudT::Ptr cloud_ptr(new PointCloudT);
-    for (int i = first_submap; i < last_submap; i++)
-    {
-        if (pcl::io::loadPCDFile(submaps_path.string() + "/submap_" + std::to_string(i) + ".pcd", *cloud_ptr) < 0)
-        {
-            PCL_ERROR("Error loading cloud %s.\n", submaps_path.string() + "/submap_" + std::to_string(i) + ".pcd");
-            return (-1);
-        }
-        rgbVis(viewer, cloud_ptr, i);
-        std::cout << "Submap " << i << std::endl;
+    int i = first_submap;
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce();
 
-        while (!viewer->wasStopped())
-        {
-            viewer->spinOnce();
+        if (next_viz_step && i < last_submap) {
+            next_viz_step = false;
+            if (pcl::io::loadPCDFile(submaps_path.string() + "/submap_" + std::to_string(i) + ".pcd", *cloud_ptr) < 0)
+            {
+                PCL_ERROR("Error loading cloud %s.\n", submaps_path.string() + "/submap_" + std::to_string(i) + ".pcd");
+                return (-1);
+            }
+            rgbVis(viewer, cloud_ptr, i);
+            std::cout << "Submap " << i << std::endl;
+            i++;
         }
-        viewer->resetStoppedFlag();
     }
-
-
+    viewer->resetStoppedFlag();
     return 0;
 }

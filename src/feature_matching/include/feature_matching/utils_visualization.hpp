@@ -74,12 +74,13 @@ std::tuple<uint8_t, uint8_t, uint8_t> jet(double x)
     return std::make_tuple(uint8_t(255. * r), uint8_t(255. * g), uint8_t(255. * b));
 }
 
-bool next_iteration_icp = false;
+bool next_viz_step = false;
 
 void keyboardEventOccurred(const pcl::visualization::KeyboardEvent &event, void *nothing)
 {
-    if (event.getKeySym() == "space" && event.keyDown())
-        next_iteration_icp = true;
+    if (event.getKeySym() == "space" && event.keyDown()) {
+        next_viz_step = true;
+    }
 }
 
 void plotCorrespondences(pcl::visualization::PCLVisualizer &viewer,
