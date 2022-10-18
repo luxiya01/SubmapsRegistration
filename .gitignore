@@ -1,3 +1,5 @@
+# Experiment folders
+experiments/*
 # Prerequisites
 *.d
 
