@@ -121,6 +121,7 @@ int main(int argc, char **argv)
 
     // Visualization
     pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    viewer->registerKeyboardCallback(&keyboardEventOccurred, (void*) NULL);
     viewer->setBackgroundColor(0.0, 0.0, 0.0);
 
     // Load map
@@ -132,98 +133,102 @@ int main(int argc, char **argv)
         return (-1);
     }
 
-    // Get an uniform grid of keypoints
-    pcl::console::print_highlight("Before sampling %zd points \n", cloud_ptr->size());
-    UniformSampling<PointXYZ> uniform;
-    uniform.setRadiusSearch(1); // m
-    uniform.setInputCloud(cloud_ptr);
-    uniform.filter(*cloud_ptr);
-    pcl::console::print_highlight("After sampling %zd points \n", cloud_ptr->size());
-
-    // Visualize downsampled pointcloud
-    rgbVis(viewer, cloud_ptr, 0);
-    while (!viewer->wasStopped())
-    {
-        viewer->spinOnce();
-    }
-    viewer->resetStoppedFlag();
-
-    // Extract keypoints
-    auto t1 = high_resolution_clock::now();
+    // Placeholder variables
     pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZ>);
-    if(config["harris"].as<bool>()){
-        std::cout << "Extracting Harris keypoints" << std::endl;
-        harrisKeypoints(cloud_ptr, *keypoints_1, config);
-    }
-    else if (config["sift"].as<bool>()){
-        std::cout << "Extracting SIFT keypoints" << std::endl;
-        siftKeypoints(cloud_ptr, *keypoints_1, config);
-    }
-    else{
-        std::cerr << "Choose an implemented keypoint extraction method" << std::endl;
-    }
-    auto t2 = high_resolution_clock::now();
-    duration<double, std::milli> ms_double = t2 - t1;
 
-    // Visualize keypoints
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> keypoints1_color(keypoints_1, 255, 0, 0);
-    viewer->addPointCloud(keypoints_1, keypoints1_color, "keypoints_src", v1);
-    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7, "keypoints_src");
-    std::cout << "Keypoint extraction duration (s) " << ms_double.count()/1000. << std::endl;
+    int current_viz_step = 0;
 
-    while (!viewer->wasStopped())
-    {
+    while (!viewer->wasStopped()) {
         viewer->spinOnce();
-    }
-    viewer->resetStoppedFlag();
+        if (next_viz_step) {
+            next_viz_step = false;
+            current_viz_step ++;
+            if (current_viz_step == 1) {
+                // Get an downsampled voxel grid of keypoints
+                pcl::console::print_highlight("Before sampling %zd points \n", cloud_ptr->size());
 
-    // Compute features and kmeans clustering
-    boost::shared_ptr<Kmeans> k_means;
+                pcl::VoxelGrid<pcl::PointXYZ> sor;
+                sor.setInputCloud(cloud_ptr);
+                sor.setLeafSize(2., 2., .1f); //m
+                sor.filter(*cloud_ptr);
 
-    if(config["shot"].as<bool>()){
-        std::cout << "Computing SHOT features" << std::endl;
-        PointCloud<SHOT352>::Ptr features_1(new PointCloud<SHOT352>);
-        estimateSHOT(keypoints_1, features_1, config);
-        
-        std::cout << "Kmeans clustering of SHOT descriptors" << std::endl;
-        kmeansSHOT(k_means, features_1, config);
-    }
-    else if (config["fpfh"].as<bool>()){
-        std::cout << "Computing FPFH features" << std::endl;
-        PointCloud<FPFHSignature33>::Ptr features_1(new PointCloud<FPFHSignature33>);
-        estimateFPFH(keypoints_1, features_1, config);
-        
-        std::cout << "Kmeans clustering of FPFH descriptors" << std::endl;
-        kmeansFPFH(k_means, features_1, config);
-    }
-    else{
-        std::cout << "Kmeans clustering of keypoints" << std::endl;
-        kmeansKeypoints(k_means, keypoints_1, config);
-    }
+                pcl::console::print_highlight("After sampling %zd points \n", cloud_ptr->size());
 
-    // NACHO: kmeans.h has been modified locally to add the accessor get_clustersToPoints()
-    pcl::Kmeans::ClustersToPoints clusters2points = k_means->get_clustersToPoints();
-    std::cout << "Number of clusters " << clusters2points.size() << std::endl;
+                // Visualize downsampled pointcloud
+                rgbVis(viewer, cloud_ptr, 0);
+            } else if (current_viz_step == 2) {
+                // Extract keypoints
+                auto t1 = high_resolution_clock::now();
+                if(config["harris"].as<bool>()){
+                    std::cout << "Extracting Harris keypoints" << std::endl;
+                    harrisKeypoints(cloud_ptr, *keypoints_1, config);
+                }
+                else if (config["sift"].as<bool>()){
+                    std::cout << "Extracting SIFT keypoints" << std::endl;
+                    siftKeypoints(cloud_ptr, *keypoints_1, config);
+                }
+                else{
+                    std::cerr << "Choose an implemented keypoint extraction method" << std::endl;
+                }
+                auto t2 = high_resolution_clock::now();
+                duration<double, std::milli> ms_double = t2 - t1;
 
-    viewer->removePointCloud("keypoints_src", v1);
-    PointCloud<PointT>::Ptr pcl_clusters(new PointCloud<PointT>);
-    for(int i=0; i<clusters2points.size(); i++){
-        pcl_clusters->points.clear();
-        for (const auto &pid : clusters2points[i])
-        {
-            PointT p = keypoints_1->points[pid];
-            pcl_clusters->points.push_back(p);
+                // Visualize keypoints
+                pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> keypoints1_color(keypoints_1, 255, 0, 0);
+                viewer->addPointCloud(keypoints_1, keypoints1_color, "keypoints_src", v1);
+                viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7, "keypoints_src");
+                std::cout << "Keypoint extraction duration (s) " << ms_double.count()/1000. << std::endl;
+            } else if (current_viz_step == 3) {
+                // Compute features and kmeans clustering
+                boost::shared_ptr<Kmeans> k_means;
+
+                if(config["shot"].as<bool>()){
+                    std::cout << "Computing SHOT features" << std::endl;
+                    PointCloud<SHOT352>::Ptr features_1(new PointCloud<SHOT352>);
+                    estimateSHOT(keypoints_1, features_1, config);
+                    
+                    std::cout << "Kmeans clustering of SHOT descriptors" << std::endl;
+                    kmeansSHOT(k_means, features_1, config);
+                }
+                else if (config["fpfh"].as<bool>()){
+                    std::cout << "Computing FPFH features" << std::endl;
+                    PointCloud<FPFHSignature33>::Ptr features_1(new PointCloud<FPFHSignature33>);
+                    estimateFPFH(keypoints_1, features_1, config);
+                    
+                    std::cout << "Kmeans clustering of FPFH descriptors" << std::endl;
+                    kmeansFPFH(k_means, features_1, config);
+                }
+                else{
+                    std::cout << "Kmeans clustering of keypoints" << std::endl;
+                    kmeansKeypoints(k_means, keypoints_1, config);
+                }
+
+                // NACHO: kmeans.h has been modified locally to add the accessor get_clustersToPoints()
+                pcl::Kmeans::ClustersToPoints clusters2points = k_means->get_clustersToPoints();
+                double num_clusters = clusters2points.size();
+                std::cout << "Number of clusters " << num_clusters << std::endl;
+
+                viewer->removePointCloud("keypoints_src", v1);
+                PointCloud<PointT>::Ptr pcl_clusters(new PointCloud<PointT>);
+
+                for(int i=0; i<clusters2points.size(); i++){
+                    pcl_clusters->points.clear();
+                    for (const auto &pid : clusters2points[i])
+                    {
+                        PointT p = keypoints_1->points[pid];
+                        pcl_clusters->points.push_back(p);
+                    }
+                    double color = (double) i/num_clusters*256.;
+                    std::cout << "color: " << color << "; random color: " << rand()/256. << std::endl;
+                    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> clusters_color(pcl_clusters,
+                                                                                        color, color, color);
+                                                                                        //rand() / 256., rand() / 256., rand() / 256.);
+                    viewer->addPointCloud(pcl_clusters, clusters_color, "clusters_src_" + std::to_string(i), v1);
+                    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7,
+                                                                "clusters_src_"+std::to_string(i));
+                }
+            }
         }
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> clusters_color(pcl_clusters,
-                                                                            rand() / 256., rand() / 256., rand() / 256.);
-        viewer->addPointCloud(pcl_clusters, clusters_color, "clusters_src_" + std::to_string(i), v1);
-        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7,
-                                                    "clusters_src_"+std::to_string(i));
-    }
-
-    while (!viewer->wasStopped())
-    {
-        viewer->spinOnce();
     }
     viewer->resetStoppedFlag();
 
