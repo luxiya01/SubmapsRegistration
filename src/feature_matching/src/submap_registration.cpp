@@ -90,26 +90,10 @@ int main(int argc, char **argv)
       pcl::transformPointCloud(*cloud_1, *cloud_2, transformation_matrix);
     }
 
-    // Gaussian noise to points in input clouds
-    double pcl_std_dev = 0.01;
-    std::normal_distribution<double> d{0, pcl_std_dev};
-    for (unsigned int i = 0; i < cloud_1->points.size(); i++)
-    {
-      cloud_1->points.at(i).x = cloud_1->points.at(i).x + d(seed);
-      cloud_1->points.at(i).y = cloud_1->points.at(i).y + d(seed);
-      cloud_1->points.at(i).z = cloud_1->points.at(i).z + d(seed);
-
-      cloud_2->points.at(i).x = cloud_2->points.at(i).x + d(seed);
-      cloud_2->points.at(i).y = cloud_2->points.at(i).y + d(seed);
-      cloud_2->points.at(i).z = cloud_2->points.at(i).z + d(seed);
-    }
-
     // Visualize initial point clouds
     pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
     viewer->registerKeyboardCallback(&keyboardEventOccurred, (void*) NULL);
     viewer->setBackgroundColor(0.0, 0.0, 0.0);
-    rgbVis(viewer, cloud_1, 0);
-    rgbVis(viewer, cloud_2, 1);
 
     // Placeholder variables
     pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZ>);
@@ -117,19 +101,29 @@ int main(int argc, char **argv)
     // Extract correspondences between keypoints/features
     CorrespondencesPtr good_correspondences(new Correspondences);
 
-    int current_registration_step = 0;
+    int current_viz_step = 0;
     std::cout << "Submap registration visualization: press space for next step" << std::endl;
 
     while (!viewer->wasStopped()) {
       viewer->spinOnce();
       if (next_viz_step) {
         next_viz_step = false;
-        current_registration_step++;
-        if (current_registration_step == 1) {
+        if (current_viz_step == VizStep::init) {
+          rgbVis(viewer, cloud_1, 0);
+          rgbVis(viewer, cloud_2, 1);
+        } else if (current_viz_step == VizStep::downsampling) {
+          std::cout << "Downsample point clouds..." << std::endl;
+          downsample_point_cloud(cloud_1, config);
+          downsample_point_cloud(cloud_2, config);
+          // Visualize downsampled pointcloud
+          viewer->removeAllPointClouds();
+          rgbVis(viewer, cloud_1, 0);
+          rgbVis(viewer, cloud_2, 1);
+        } else if (current_viz_step == VizStep::kp_extraction) {
           std::cout << "Extract keypoints and correspondences between keypoints" << std::endl;
           // Extract keypoints
-          harrisKeypoints(cloud_1, *keypoints_1, config);
-          harrisKeypoints(cloud_2, *keypoints_2, config);
+          keypoints_1 = extract_keypoints(cloud_1, config);
+          keypoints_2 = extract_keypoints(cloud_2, config);
 
           // Visualize keypoints
           pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> keypoints1_color_handler(keypoints_1, 255, 0, 0);
@@ -138,7 +132,7 @@ int main(int argc, char **argv)
           viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7, "keypoints_src");
           viewer->addPointCloud(keypoints_2, keypoints2_color_handler, "keypoints_trg", v1);
           viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 7, "keypoints_trg");
-
+        } else if (current_viz_step == VizStep::corr_matching) {
           // Compute SHOT descriptors
           PointCloud<SHOT352>::Ptr shot_1(new PointCloud<SHOT352>);
           PointCloud<SHOT352>::Ptr shot_2(new PointCloud<SHOT352>);
@@ -150,7 +144,7 @@ int main(int argc, char **argv)
 
           // Extract correspondences between keypoints
           plotCorrespondences(*viewer, *good_correspondences, keypoints_1, keypoints_2);
-        } else if (current_registration_step == 2) {
+        } else if (current_viz_step == 4) {
           std::cout << "Estimate transform based on initial correspondence..." << std::endl;
           // Best transformation between the two sets of keypoints given the remaining correspondences
           Eigen::Matrix4f transform;
@@ -162,7 +156,7 @@ int main(int argc, char **argv)
           viewer->removeAllShapes();
           rgbVis(viewer, cloud_1, 0);
           rgbVis(viewer, cloud_2, 1);
-        } else if (current_registration_step == 3) {
+        } else if (current_viz_step == 5) {
           std::cout << "View GICP registration results" << std::endl;
           // Run GICP
           runGicp(cloud_2, cloud_1);
@@ -173,6 +167,7 @@ int main(int argc, char **argv)
         } else {
           std::cout << "No further steps to visualize. Viewing GICP registration results." << std::endl;
         }
+        current_viz_step++;
       }
     }
     viewer->resetStoppedFlag();

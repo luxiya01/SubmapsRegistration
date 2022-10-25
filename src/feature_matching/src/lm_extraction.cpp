@@ -22,11 +22,6 @@
 using namespace Eigen;
 using namespace std;
 
-using std::chrono::duration;
-using std::chrono::duration_cast;
-using std::chrono::high_resolution_clock;
-using std::chrono::milliseconds;
-
 void kmeansFPFH(boost::shared_ptr<Kmeans>& k_means,
                 PointCloud<FPFHSignature33>::Ptr features, 
                 YAML::Node config)
@@ -92,42 +87,6 @@ void kmeansKeypoints(boost::shared_ptr<Kmeans> &k_means,
 
     // k-means clustering
     k_means->kMeans();
-}
-
-void downsample_point_cloud(PointCloudT::Ptr cloud_ptr, YAML::Node config) {
-    // Get an downsampled voxel grid of keypoints
-    pcl::console::print_highlight("Before sampling %zd points \n", cloud_ptr->size());
-
-    pcl::VoxelGrid<pcl::PointXYZ> sor;
-    sor.setInputCloud(cloud_ptr);
-    double leaf_x = config["leaf_x"].as<double>();
-    double leaf_y = config["leaf_y"].as<double>();
-    double leaf_z = config["leaf_z"].as<double>();
-    sor.setLeafSize(leaf_x, leaf_y, leaf_z); //m
-    sor.filter(*cloud_ptr);
-
-    pcl::console::print_highlight("After sampling %zd points \n", cloud_ptr->size());
-}
-
-pcl::PointCloud<pcl::PointXYZ>::Ptr extract_keypoints(PointCloudT::Ptr cloud_ptr, YAML::Node config) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZ>);
-    // Extract keypoints
-    auto t1 = high_resolution_clock::now();
-    if(config["harris"].as<bool>()){
-        std::cout << "Extracting Harris keypoints" << std::endl;
-        harrisKeypoints(cloud_ptr, *keypoints_1, config);
-    }
-    else if (config["sift"].as<bool>()){
-        std::cout << "Extracting SIFT keypoints" << std::endl;
-        siftKeypoints(cloud_ptr, *keypoints_1, config);
-    }
-    else{
-        std::cerr << "Choose an implemented keypoint extraction method" << std::endl;
-    }
-    auto t2 = high_resolution_clock::now();
-    duration<double, std::milli> ms_double = t2 - t1;
-    std::cout << "Keypoint extraction duration (s) " << ms_double.count()/1000. << std::endl;
-    return keypoints_1;
 }
 
 void cluster_keypoints(pcl::visualization::PCLVisualizer::Ptr viewer, pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_1, YAML::Node config) {
@@ -223,7 +182,6 @@ int main(int argc, char **argv)
     // Placeholder variables
     pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZ>);
 
-    enum VizStep {init = 0, downsampling = 1, kp_extraction = 2, clustering = 3};
     int current_viz_step = 0;
 
     while (!viewer->wasStopped()) {

@@ -2,6 +2,7 @@
 #include <string>
 #include <random>
 #include <cmath>
+#include <chrono>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
@@ -40,6 +41,11 @@ using namespace pcl::registration;
 using namespace std;
 using namespace Eigen;
 
+using std::chrono::duration;
+using std::chrono::duration_cast;
+using std::chrono::high_resolution_clock;
+using std::chrono::milliseconds;
+
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudRGB;
 typedef pcl::PointCloud<PointT> PointCloudT;
@@ -55,6 +61,22 @@ namespace pcl
             return p.z;
         }
     };
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void downsample_point_cloud(PointCloudT::Ptr cloud_ptr, YAML::Node config) {
+    // Get an downsampled voxel grid of keypoints
+    pcl::console::print_highlight("Before sampling %zd points \n", cloud_ptr->size());
+
+    pcl::VoxelGrid<pcl::PointXYZ> sor;
+    sor.setInputCloud(cloud_ptr);
+    double leaf_x = config["leaf_x"].as<double>();
+    double leaf_y = config["leaf_y"].as<double>();
+    double leaf_z = config["leaf_z"].as<double>();
+    sor.setLeafSize(leaf_x, leaf_y, leaf_z); //m
+    sor.filter(*cloud_ptr);
+
+    pcl::console::print_highlight("After sampling %zd points \n", cloud_ptr->size());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -374,3 +396,26 @@ void runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud)
 
     gicp.align(*src_cloud);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+pcl::PointCloud<pcl::PointXYZ>::Ptr extract_keypoints(const PointCloudT::Ptr cloud_ptr, YAML::Node config) {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZ>);
+    // Extract keypoints
+    auto t1 = high_resolution_clock::now();
+    if(config["harris"].as<bool>()){
+        std::cout << "Extracting Harris keypoints" << std::endl;
+        harrisKeypoints(cloud_ptr, *keypoints_1, config);
+    }
+    else if (config["sift"].as<bool>()){
+        std::cout << "Extracting SIFT keypoints" << std::endl;
+        siftKeypoints(cloud_ptr, *keypoints_1, config);
+    }
+    else{
+        std::cerr << "Choose an implemented keypoint extraction method" << std::endl;
+    }
+    auto t2 = high_resolution_clock::now();
+    duration<double, std::milli> ms_double = t2 - t1;
+    std::cout << "Keypoint extraction duration (s) " << ms_double.count()/1000. << std::endl;
+    return keypoints_1;
+}
+
