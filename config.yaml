@@ -1,12 +1,14 @@
+# Downsampling (m)
+leaf_x: 2.
+leaf_y: 2.
+leaf_z: .3
 
 ## HARRIS
 # Radius for non maxima supression in Harris keypoints detector
 harris: True
-harris_kps_radius: 0.6
-
+harris_kps_radius: 5.
 # Radius for normals estimation
-normals_radius: 1.
-
+normals_radius: 10.
 # threshold value for detecting corners in Harris keypoints detector
 harris_kps_thres: 1e-6
 
