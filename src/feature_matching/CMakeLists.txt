@@ -44,3 +44,9 @@ target_link_libraries (visualize_submaps
 	data_transforms
 	yaml-cpp
 	${PCL_LIBRARIES})
+
+add_executable(gicp_registration
+	src/gicp_registration.cpp)
+target_link_libraries(gicp_registration
+	yaml-cpp
+	${PCL_LIBRARIES})
