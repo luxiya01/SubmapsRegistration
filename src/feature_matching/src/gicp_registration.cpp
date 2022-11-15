@@ -38,6 +38,6 @@ int main(int argc, char **argv) {
     boost::filesystem::path yaml_path(config);
     YAML::Node yaml_config = YAML::LoadFile(yaml_path.string());
 
-    PointCloudT pc1 = load_point_cloud(submap1);
-    PointCloudT pc2 = load_point_cloud(submap2);
+    PointCloudT::Ptr pc1 = load_point_cloud(submap1);
+    PointCloudT::Ptr pc2 = load_point_cloud(submap2);
 }
