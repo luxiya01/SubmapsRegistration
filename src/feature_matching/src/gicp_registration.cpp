@@ -3,6 +3,7 @@
 
 #include "feature_matching/cxxopts.hpp"
 #include "feature_matching/utils_visualization.hpp"
+#include "feature_matching/corresp_matching.hpp"
 
 #include "yaml-cpp/yaml.h"
 #include "yaml-cpp/parser.h"
@@ -40,4 +41,6 @@ int main(int argc, char **argv) {
 
     PointCloudT::Ptr pc1 = load_point_cloud(submap1);
     PointCloudT::Ptr pc2 = load_point_cloud(submap2);
+
+    runGicp(pc1, pc2, yaml_config);
 }

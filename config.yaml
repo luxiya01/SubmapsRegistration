@@ -3,6 +3,15 @@ leaf_x: 2.
 leaf_y: 2.
 leaf_z: .3
 
+# GICP registration params (meters)
+gicp_max_correspondence_distance: 10
+gicp_maximum_iterations: 200
+gicp_maximum_optimizer_iterations: 20
+gicp_ransac_iterations: 10
+gicp_ransac_outlier_rejection_threshold: .05
+gicp_transform_epsilon: 1e-5
+gicp_euclidean_fitness_epsilon: 1e-5
+
 ## HARRIS
 # Radius for non maxima supression in Harris keypoints detector
 harris: True

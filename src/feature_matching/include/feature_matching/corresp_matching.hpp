@@ -370,18 +370,30 @@ void computeTransformation(const PointCloud<PointXYZ>::Ptr &src,
     // trans_est.estimateRigidTransformation(*keypoints_src, *keypoints_tgt, *all_correspondences, transform);
 }
 
+void loadGicpConfig(pcl::GeneralizedIterativeClosestPoint<PointT, PointT>& gicp, YAML::Node config) {
+    gicp.setMaxCorrespondenceDistance(config["gicp_max_correspondence_distance"].as<double>());
+    gicp.setMaximumIterations(config["gicp_maximum_iterations"].as<int>());
+    gicp.setMaximumOptimizerIterations(config["gicp_maximum_optimizer_iterations"].as<int>());
+    gicp.setRANSACIterations(config["gicp_ransac_iterations"].as<int>());
+    gicp.setRANSACOutlierRejectionThreshold(config["gicp_ransac_outlier_rejection_threshold"].as<double>());
+    gicp.setTransformationEpsilon(config["gicp_transform_epsilon"].as<double>());
+    gicp.setEuclideanFitnessEpsilon(config["gicp_euclidean_fitness_epsilon"].as<double>());
+}
 
-void runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud)
-{
-
-    pcl::GeneralizedIterativeClosestPoint<PointT, PointT> gicp;
-
+void constrainGicpTransformation(pcl::GeneralizedIterativeClosestPoint<PointT, PointT>& gicp) {
     // Constrain GICP to x,y, yaw
     pcl::registration::WarpPointRigid3D<PointT, PointT>::Ptr warp_fcn(new pcl::registration::WarpPointRigid3D<PointT, PointT>);
 
     pcl::registration::TransformationEstimationLM<PointT, PointT>::Ptr te(new pcl::registration::TransformationEstimationLM<PointT, PointT>);
     te->setWarpFunction(warp_fcn);
     gicp.setTransformationEstimation(te);
+}
+
+void runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud)
+{
+
+    pcl::GeneralizedIterativeClosestPoint<PointT, PointT> gicp;
+    constrainGicpTransformation(gicp);
 
     gicp.setInputSource(src_cloud);
     gicp.setInputTarget(trg_cloud);
@@ -395,6 +407,22 @@ void runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud)
     // gicp.setUseReciprocalCorrespondences(true);
 
     gicp.align(*src_cloud);
+}
+
+void runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud, YAML::Node config) {
+    pcl::GeneralizedIterativeClosestPoint<PointT, PointT> gicp;
+    constrainGicpTransformation(gicp);
+    loadGicpConfig(gicp, config);
+
+    gicp.setInputSource(src_cloud);
+    gicp.setInputTarget(trg_cloud);
+    gicp.align(*src_cloud);
+
+    Matrix4f transform = gicp.getFinalTransformation();
+
+    cout << "GICP converged? " << gicp.hasConverged() << endl;
+    cout << "Fitness score: " << gicp.getFitnessScore(gicp.getMaxCorrespondenceDistance()) << endl;
+    cout << "Final transform: " << transform << endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
