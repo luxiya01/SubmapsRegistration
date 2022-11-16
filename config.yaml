@@ -12,6 +12,10 @@ gicp_ransac_outlier_rejection_threshold: .05
 gicp_transform_epsilon: 1e-5
 gicp_euclidean_fitness_epsilon: 1e-5
 
+# Benchmark config
+benchmark_nbr_rows: 500
+benchmark_nbr_cols: 500
+
 ## HARRIS
 # Radius for non maxima supression in Harris keypoints detector
 harris: True
