@@ -2,6 +2,7 @@
 #include <string>
 #include <random>
 #include <cmath>
+#include <map>
 
 #include <pcl/io/pcd_io.h>
 #include <pcl/io/ply_io.h>
@@ -14,6 +15,8 @@
 #include <pcl/point_representation.h>
 
 #include <pcl/conversions.h>
+
+#define stringify( name ) #name
 
 using namespace pcl;
 using namespace pcl::io;
@@ -76,6 +79,7 @@ std::tuple<uint8_t, uint8_t, uint8_t> jet(double x)
 
 enum VizStep {init = 0, downsampling = 1, gicp = 2, kp_extraction = 2, clustering = 3,
 corr_matching = 3 };
+const char* viz_step_to_string[] = {stringify(init), stringify(downsampling), stringify(gicp)};
 bool next_viz_step = false;
 
 void keyboardEventOccurred(const pcl::visualization::KeyboardEvent &event, void *nothing)

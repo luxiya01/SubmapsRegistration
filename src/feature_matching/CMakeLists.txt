@@ -7,6 +7,7 @@ find_package(LibXTF REQUIRED)
 find_package(LibGSF REQUIRED)
 find_package(EigenCereal REQUIRED)
 find_package(DataTools REQUIRED)
+find_package(OpenCV REQUIRED)
 find_package(yaml-cpp)
 include_directories(${yaml_cpp_INCLUDE_DIRS})
 
@@ -49,4 +50,5 @@ add_executable(gicp_registration
 	src/gicp_registration.cpp)
 target_link_libraries(gicp_registration
 	yaml-cpp
+	benchmark
 	${PCL_LIBRARIES})
