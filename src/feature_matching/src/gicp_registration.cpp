@@ -21,6 +21,13 @@ PointCloudT::Ptr load_point_cloud(const string path) {
     return cloud_ptr;
 }
 
+void rgbVis_two_point_clouds(pcl::visualization::PCLVisualizer::Ptr& viewer,
+    PointCloudT::Ptr& pc1, PointCloudT::Ptr& pc2) {
+    viewer->removeAllPointClouds();
+    rgbVis(viewer, pc1, 0);
+    rgbVis(viewer, pc2, 1);
+}
+
 int main(int argc, char **argv) {
     std::string submap1, submap2, config;
     cxxopts::Options options("GICP registration", "GICP registration for 2 submaps");
@@ -42,5 +49,35 @@ int main(int argc, char **argv) {
     PointCloudT::Ptr pc1 = load_point_cloud(submap1);
     PointCloudT::Ptr pc2 = load_point_cloud(submap2);
 
-    runGicp(pc1, pc2, yaml_config);
+    // Visualization
+    pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+    viewer->registerKeyboardCallback(&keyboardEventOccurred, (void*) NULL);
+    viewer->setBackgroundColor(0.0, 0.0, 0.0);
+
+    int current_viz_step = 0;
+    while (!viewer->wasStopped()) {
+        viewer->spinOnce();
+        if (next_viz_step) {
+            cout << "Advance to next viz step..." << endl;
+            switch (current_viz_step) {
+                case VizStep::init:
+                    cout << "Showing initial point clouds..." << endl;
+                    break;
+                case VizStep::downsampling:
+                    cout << "Downsampling point clouds..." << endl;
+                    downsample_point_cloud(pc1, yaml_config);
+                    downsample_point_cloud(pc2, yaml_config);
+                    break;
+                case VizStep::gicp:
+                    cout << "GICP registration..." << endl;
+                    runGicp(pc1, pc2, yaml_config);
+                    break;
+                default:
+                    break;
+            }
+            rgbVis_two_point_clouds(viewer, pc1, pc2);
+            next_viz_step = false;
+            current_viz_step += 1;
+        }
+    }
 }

@@ -74,7 +74,7 @@ std::tuple<uint8_t, uint8_t, uint8_t> jet(double x)
     return std::make_tuple(uint8_t(255. * r), uint8_t(255. * g), uint8_t(255. * b));
 }
 
-enum VizStep {init = 0, downsampling = 1, kp_extraction = 2, clustering = 3,
+enum VizStep {init = 0, downsampling = 1, gicp = 2, kp_extraction = 2, clustering = 3,
 corr_matching = 3 };
 bool next_viz_step = false;
 
