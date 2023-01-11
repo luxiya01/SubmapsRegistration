@@ -82,7 +82,10 @@ int main(int argc, char **argv) {
     viewer->setBackgroundColor(0.0, 0.0, 0.0);
 
     int current_viz_step = 0;
-    int gicp_random_init_iterations = yaml_config["gicp_random_init_iterations"].as<int>();
+    int gicp_current_iteration = 0;
+    int gicp_max_iterations = yaml_config["gicp_max_iterations"].as<int>();
+    Matrix4f final_transform = Matrix4f::Identity();
+    float min_consistency_error = std::numeric_limits<float>::max();
 
     while (!viewer->wasStopped()) {
         viewer->spinOnce();
@@ -92,35 +95,43 @@ int main(int argc, char **argv) {
                 case VizStep::init:
                     cout << "Showing initial point clouds..." << endl;
                     break;
-                case VizStep::downsampling:
-                    cout << "Downsampling point clouds..." << endl;
-                    downsample_point_cloud(pc1, yaml_config);
-                    downsample_point_cloud(pc2, yaml_config);
-                    break;
                 case VizStep::gicp:
                     cout << "GICP registration..." << endl;
-
-                    for (int i = 0; i < gicp_random_init_iterations; i ++) {
-                        runGicp(pc1, pc2, yaml_config);
-
+                    while (gicp_current_iteration < gicp_max_iterations) {
+                        Matrix4f transform = runGicp(pc1, pc2, yaml_config);
+                        string benchmark_name = "gicp_" + std::to_string(gicp_current_iteration);
                         // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
                         pc_as_pointsT = point_clouds_to_pointsT(point_clouds_vec);
-                        benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, "gicp_" + std::to_string(i));
+                        benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, benchmark_name);
+
+                        if (transform == Matrix4f::Identity()) {
+                            break;
+                        } else if (benchmark.consistency_rms_errors[benchmark_name] > min_consistency_error) {
+                            // Transform pc1 back to before the current GICP transform was performed
+                            pcl::transformPointCloud(*pc1, *pc1, transform.inverse());
+                            break;
+                        }
+                        min_consistency_error = benchmark.consistency_rms_errors[benchmark_name];
+                        final_transform*=transform;
+                        gicp_current_iteration++;
+                        cout << "Final transform: \n" << final_transform << endl;
                     }
                     break;
                 default:
                     break;
             }
-            if (current_viz_step <= VizStep::gicp) {
-                // Update visualization
-                rgbVis_two_point_clouds(viewer, pc1, pc2);
-                // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
-                pc_as_pointsT = point_clouds_to_pointsT(point_clouds_vec);
-                string benchmark_name = viz_step_to_string[current_viz_step];
-                benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, benchmark_name);
-            }
+            // Update visualization
+            rgbVis_two_point_clouds(viewer, pc1, pc2);
+            // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
+            pc_as_pointsT = point_clouds_to_pointsT(point_clouds_vec);
+            string benchmark_name = viz_step_to_string[current_viz_step];
+            benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, benchmark_name);
+
             next_viz_step = false;
             current_viz_step += 1;
+            if (current_viz_step > VizStep::gicp) {
+                return 0;
+            }
         }
     }
 }

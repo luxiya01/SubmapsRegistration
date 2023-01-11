@@ -409,7 +409,7 @@ void runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud)
     gicp.align(*src_cloud);
 }
 
-void runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud, YAML::Node config) {
+Matrix4f runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud, YAML::Node config) {
     pcl::GeneralizedIterativeClosestPoint<PointT, PointT> gicp;
     constrainGicpTransformation(gicp);
     loadGicpConfig(gicp, config);
@@ -419,13 +419,11 @@ void runGicp(PointCloudT::Ptr &src_cloud, const PointCloudT::Ptr &trg_cloud, YAM
     gicp.align(*src_cloud);
 
     Matrix4f transform = gicp.getFinalTransformation();
-    bool is_identity = transform == Matrix4f::Identity();
 
     cout << "GICP converged? " << gicp.hasConverged() << endl;
     cout << "Fitness score: " << gicp.getFitnessScore(gicp.getMaxCorrespondenceDistance()) << endl;
     cout << "Final transform: " << transform << endl;
-    cout << "Final transform is identity: " << is_identity << endl;
-    //return transform;
+    return transform;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
