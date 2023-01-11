@@ -7,5 +7,5 @@ while IFS=" " read -r col1 col2
 do
     ./gicp_registration --submap1 "$folder/submap_$col1.pcd"\
                         --submap2 "$folder/submap_$col2.pcd"\
-                        --config ../config.yaml
+                        --config ../gicp.yaml
 done < $input
