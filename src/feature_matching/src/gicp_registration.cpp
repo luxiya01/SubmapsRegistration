@@ -91,8 +91,8 @@ int main(int argc, char **argv) {
     Matrix4f final_transform = Matrix4f::Identity();
     float min_consistency_error = std::numeric_limits<float>::max();
     string min_benchmark_name = "";
-    string outfile_name = submap1.stem().string() + "-" + submap2.stem().string() + ".tf";
-    ofstream out_file(outfile_name);
+    string submap_pair = submap1.stem().string() + "-" + submap2.stem().string();
+    ofstream out_file(submap_pair + ".tf");
 
     while (!viewer->wasStopped()) {
         viewer->spinOnce();
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
                     cout << "GICP registration..." << endl;
                     while (gicp_current_iteration < gicp_max_iterations) {
                         Matrix4f transform = runGicp(pc1, pc2, yaml_config);
-                        string benchmark_name = "gicp_" + std::to_string(gicp_current_iteration);
+                        string benchmark_name = submap_pair + "_gicp_" + std::to_string(gicp_current_iteration);
                         // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
                         pc_as_pointsT = point_clouds_to_pointsT(point_clouds_vec);
                         benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, benchmark_name);
@@ -128,9 +128,10 @@ int main(int argc, char **argv) {
                     // Write GICP results to file
                     if (out_file.is_open()) {
                         out_file << "Num GICP iterations: " << gicp_current_iteration << endl;
-                        out_file << "RMS consistency error: " << benchmark.consistency_rms_errors[min_benchmark_name] << endl;
-                        out_file << "std (all grids): " << benchmark.std_grids_with_hits[min_benchmark_name] << endl;
-                        out_file << "std (grids with overlap): " << benchmark.std_grids_with_overlaps[min_benchmark_name] << endl;
+                        out_file << "Error\t" << "Initial\t" << "Final" << endl;
+                        out_file << "RMS consistency error\t" << benchmark.consistency_rms_errors[submap_pair+"_init"] << "\t " <<benchmark.consistency_rms_errors[min_benchmark_name] << endl;
+                        out_file << "std (all grids)\t" << benchmark.std_grids_with_hits[submap_pair+"_init"] << "\t" << benchmark.std_grids_with_hits[min_benchmark_name] << endl;
+                        out_file << "std (grids with overlap)\t" << benchmark.std_grids_with_overlaps[submap_pair+"_init"] << "\t" << benchmark.std_grids_with_overlaps[min_benchmark_name] << endl;
                         out_file << "transform\n" << final_transform << endl;
                     }
                 default:
@@ -140,7 +141,7 @@ int main(int argc, char **argv) {
             rgbVis_two_point_clouds(viewer, pc1, pc2);
             // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
             pc_as_pointsT = point_clouds_to_pointsT(point_clouds_vec);
-            string benchmark_name = viz_step_to_string[current_viz_step];
+            string benchmark_name = submap_pair + "_" + viz_step_to_string[current_viz_step];
             benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, benchmark_name);
 
             next_viz_step = auto_viz;
