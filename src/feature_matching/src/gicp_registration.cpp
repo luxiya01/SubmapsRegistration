@@ -101,10 +101,6 @@ int main(int argc, char **argv) {
                     cout << "GICP registration..." << endl;
 
                     for (int i = 0; i < gicp_random_init_iterations; i ++) {
-                        PointCloudT::Ptr transformed_cloud (new PointCloudT());
-                        Affine3f random_transform = Affine3f::Identity();
-                        random_transform.translation() << i, i, 0.;
-                        pcl::transformPointCloud (*pc1, *transformed_cloud, random_transform);
                         runGicp(pc1, pc2, yaml_config);
 
                         // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
