@@ -1,5 +1,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
+#include <iostream>
+#include <fstream>
 
 #include "feature_matching/cxxopts.hpp"
 #include "feature_matching/utils_visualization.hpp"
@@ -15,9 +17,7 @@
 
 using namespace std;
 
-PointCloudT::Ptr load_point_cloud(const string path) {
-    boost::filesystem::path cloud_path(path);
-
+PointCloudT::Ptr load_point_cloud(const boost::filesystem::path cloud_path) {
     PointCloudT::Ptr cloud_ptr(new PointCloudT);
     cout << "Loading point cloud " << cloud_path.string() << endl;
 
@@ -44,11 +44,11 @@ PointsT point_clouds_to_pointsT(const vector<PointCloudT::Ptr> point_clouds) {
 }
 
 int main(int argc, char **argv) {
-    std::string submap1, submap2, config;
+    std::string submap1_str, submap2_str, config;
     cxxopts::Options options("GICP registration", "GICP registration for 2 submaps");
     options.add_options()("help", "Print help")
-    ("submap1", "PCD map 1", cxxopts::value(submap1))
-    ("submap2", "PCD map 2", cxxopts::value(submap2))
+    ("submap1", "PCD map 1", cxxopts::value(submap1_str))
+    ("submap2", "PCD map 2", cxxopts::value(submap2_str))
     ("config", "YAML config file for GICP parameters", cxxopts::value(config));
 
     auto result = options.parse(argc, argv);
@@ -58,6 +58,8 @@ int main(int argc, char **argv) {
     }
 
     // Load the yaml file
+    boost::filesystem::path submap1(submap1_str);
+    boost::filesystem::path submap2(submap2_str);
     boost::filesystem::path yaml_path(config);
     YAML::Node yaml_config = YAML::LoadFile(yaml_path.string());
 
@@ -80,12 +82,17 @@ int main(int argc, char **argv) {
     pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
     viewer->registerKeyboardCallback(&keyboardEventOccurred, (void*) NULL);
     viewer->setBackgroundColor(0.0, 0.0, 0.0);
+    bool auto_viz = yaml_config["auto_viz"].as<bool>();
+    next_viz_step = auto_viz;
 
     int current_viz_step = 0;
     int gicp_current_iteration = 0;
     int gicp_max_iterations = yaml_config["gicp_max_iterations"].as<int>();
     Matrix4f final_transform = Matrix4f::Identity();
     float min_consistency_error = std::numeric_limits<float>::max();
+    string min_benchmark_name = "";
+    string outfile_name = submap1.stem().string() + "-" + submap2.stem().string() + ".tf";
+    ofstream out_file(outfile_name);
 
     while (!viewer->wasStopped()) {
         viewer->spinOnce();
@@ -112,11 +119,20 @@ int main(int argc, char **argv) {
                             break;
                         }
                         min_consistency_error = benchmark.consistency_rms_errors[benchmark_name];
+                        min_benchmark_name = benchmark_name;
                         final_transform*=transform;
                         gicp_current_iteration++;
                         cout << "Final transform: \n" << final_transform << endl;
                     }
-                    break;
+
+                    // Write GICP results to file
+                    if (out_file.is_open()) {
+                        out_file << "Num GICP iterations: " << gicp_current_iteration << endl;
+                        out_file << "RMS consistency error: " << benchmark.consistency_rms_errors[min_benchmark_name] << endl;
+                        out_file << "std (all grids): " << benchmark.std_grids_with_hits[min_benchmark_name] << endl;
+                        out_file << "std (grids with overlap): " << benchmark.std_grids_with_overlaps[min_benchmark_name] << endl;
+                        out_file << "transform\n" << final_transform << endl;
+                    }
                 default:
                     break;
             }
@@ -127,7 +143,7 @@ int main(int argc, char **argv) {
             string benchmark_name = viz_step_to_string[current_viz_step];
             benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, benchmark_name);
 
-            next_viz_step = false;
+            next_viz_step = auto_viz;
             current_viz_step += 1;
             if (current_viz_step > VizStep::gicp) {
                 return 0;

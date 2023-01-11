@@ -16,3 +16,6 @@ gicp_max_iterations: 20
 # Benchmark config
 benchmark_nbr_rows: 500
 benchmark_nbr_cols: 500
+
+# !Interactive visualization?
+auto_viz: true
