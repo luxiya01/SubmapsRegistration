@@ -43,6 +43,23 @@ PointsT point_clouds_to_pointsT(const vector<PointCloudT::Ptr> point_clouds) {
     return pc_in_pointsT;
 }
 
+double add_benchmark_and_update_min_vals(benchmark::track_error_benchmark& benchmark,
+                                       const string& current_benchmark_name,
+                                       string& min_benchmark_name,
+                                       double min_consistency_error,
+                                       const vector<PointCloudT::Ptr>& point_clouds_vec){
+    // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
+    PointsT pc_as_pointsT = point_clouds_to_pointsT(point_clouds_vec);
+    benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, current_benchmark_name);
+
+    if (benchmark.consistency_rms_errors[current_benchmark_name] < min_consistency_error) {
+        min_consistency_error = benchmark.consistency_rms_errors[current_benchmark_name];
+        min_benchmark_name = current_benchmark_name;
+    }
+    printf("Min benchmark name: %s, min RMS: %.5f\n", min_benchmark_name.c_str(), min_consistency_error);
+    return min_consistency_error;
+}
+
 int main(int argc, char **argv) {
     std::string submap1_str, submap2_str, config;
     cxxopts::Options options("GICP registration", "GICP registration for 2 submaps");
@@ -89,7 +106,8 @@ int main(int argc, char **argv) {
     int gicp_current_iteration = 0;
     int gicp_max_iterations = yaml_config["gicp_max_iterations"].as<int>();
     Matrix4f final_transform = Matrix4f::Identity();
-    float min_consistency_error = std::numeric_limits<float>::max();
+    double min_consistency_error = std::numeric_limits<double>::max();
+    string current_benchmark_name = "";
     string min_benchmark_name = "";
     string submap_pair = submap1.stem().string() + "-" + submap2.stem().string();
     ofstream out_file(submap_pair + ".tf");
@@ -101,25 +119,31 @@ int main(int argc, char **argv) {
             switch (current_viz_step) {
                 case VizStep::init:
                     cout << "Showing initial point clouds..." << endl;
+                    current_benchmark_name = submap_pair + "_" + viz_step_to_string[current_viz_step];
+                    min_consistency_error = add_benchmark_and_update_min_vals(benchmark, current_benchmark_name, min_benchmark_name,
+                                                      min_consistency_error, point_clouds_vec);
                     break;
                 case VizStep::gicp:
                     cout << "GICP registration..." << endl;
                     while (gicp_current_iteration < gicp_max_iterations) {
                         Matrix4f transform = runGicp(pc1, pc2, yaml_config);
-                        string benchmark_name = submap_pair + "_gicp_" + std::to_string(gicp_current_iteration);
-                        // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
-                        pc_as_pointsT = point_clouds_to_pointsT(point_clouds_vec);
-                        benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, benchmark_name);
-
                         if (transform == Matrix4f::Identity()) {
                             break;
-                        } else if (benchmark.consistency_rms_errors[benchmark_name] > min_consistency_error) {
+                        }
+                        current_benchmark_name = submap_pair + "_gicp_" + std::to_string(gicp_current_iteration);
+                        min_consistency_error = add_benchmark_and_update_min_vals(benchmark, current_benchmark_name, min_benchmark_name,
+                                                        min_consistency_error, point_clouds_vec);
+                        if (benchmark.consistency_rms_errors[current_benchmark_name] > min_consistency_error) {
                             // Transform pc1 back to before the current GICP transform was performed
+                            cout << "\n\nTransforming back!!!\n"
+                                 << "Min_consistency_error: " << min_consistency_error << "\n"
+                                 << "current error: " << benchmark.consistency_rms_errors[current_benchmark_name]
+                                 << "\n\n"
+                                 << endl;
+
                             pcl::transformPointCloud(*pc1, *pc1, transform.inverse());
                             break;
                         }
-                        min_consistency_error = benchmark.consistency_rms_errors[benchmark_name];
-                        min_benchmark_name = benchmark_name;
                         final_transform*=transform;
                         gicp_current_iteration++;
                         cout << "Final transform: \n" << final_transform << endl;
@@ -139,11 +163,6 @@ int main(int argc, char **argv) {
             }
             // Update visualization
             rgbVis_two_point_clouds(viewer, pc1, pc2);
-            // Update benchmark: note that the second param in benchmark.add_benchmark is not actually used
-            pc_as_pointsT = point_clouds_to_pointsT(point_clouds_vec);
-            string benchmark_name = submap_pair + "_" + viz_step_to_string[current_viz_step];
-            benchmark.add_benchmark(pc_as_pointsT, pc_as_pointsT, benchmark_name);
-
             next_viz_step = auto_viz;
             current_viz_step += 1;
             if (current_viz_step > VizStep::gicp) {
