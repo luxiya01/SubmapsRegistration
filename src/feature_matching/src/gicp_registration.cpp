@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
     string current_benchmark_name = "";
     string min_benchmark_name = "";
     string submap_pair = submap1.stem().string() + "-" + submap2.stem().string();
-    ofstream out_file(submap_pair + ".tf");
+    ofstream out_file(submap_pair + ".yaml");
 
     while (!viewer->wasStopped()) {
         viewer->spinOnce();
@@ -151,12 +151,27 @@ int main(int argc, char **argv) {
 
                     // Write GICP results to file
                     if (out_file.is_open()) {
-                        out_file << "Num GICP iterations: " << gicp_current_iteration << endl;
-                        out_file << "Error\t" << "Initial\t" << "Final" << endl;
-                        out_file << "RMS consistency error\t" << benchmark.consistency_rms_errors[submap_pair+"_init"] << "\t " <<benchmark.consistency_rms_errors[min_benchmark_name] << endl;
-                        out_file << "std (all grids)\t" << benchmark.std_grids_with_hits[submap_pair+"_init"] << "\t" << benchmark.std_grids_with_hits[min_benchmark_name] << endl;
-                        out_file << "std (grids with overlap)\t" << benchmark.std_grids_with_overlaps[submap_pair+"_init"] << "\t" << benchmark.std_grids_with_overlaps[min_benchmark_name] << endl;
-                        out_file << "transform\n" << final_transform << endl;
+                        out_file << "no_gicp_iterations: " << gicp_current_iteration << endl;
+                        out_file << "rms_error:\n" 
+                                 << "  init: " << benchmark.consistency_rms_errors[submap_pair+"_init"] << endl 
+                                 << "  final: " <<benchmark.consistency_rms_errors[min_benchmark_name] << endl;
+                        out_file << "std_all:\n"
+                                 << "  init: " << benchmark.std_grids_with_hits[submap_pair+"_init"] << endl
+                                 << "  final: " << benchmark.std_grids_with_hits[min_benchmark_name] << endl;
+                        out_file << "std_overlap:\n"
+                                 << "  init: " << benchmark.std_grids_with_overlaps[submap_pair+"_init"] << endl
+                                 << "  final: " << benchmark.std_grids_with_overlaps[min_benchmark_name] << endl;
+                        out_file << "transform: [";
+                        int num = 0;
+                        for (float tf : final_transform.reshaped<RowMajor>()) {
+                            out_file << tf;
+                            if (num < final_transform.size()-1) {
+                                out_file << ", ";
+                            } else {
+                                out_file << "]" << endl;
+                            }
+                            num ++;
+                        }
                     }
                 default:
                     break;
