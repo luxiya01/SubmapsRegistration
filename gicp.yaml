@@ -9,7 +9,7 @@ gicp_maximum_iterations: 200
 gicp_maximum_optimizer_iterations: 20
 gicp_ransac_iterations: 20
 gicp_ransac_outlier_rejection_threshold: .5
-gicp_transform_epsilon: 1e-5
+gicp_transform_epsilon: 1e-4
 gicp_euclidean_fitness_epsilon: 1e-5
 gicp_max_iterations: 20
 

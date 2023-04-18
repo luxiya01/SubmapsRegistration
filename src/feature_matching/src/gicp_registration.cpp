@@ -155,12 +155,21 @@ int main(int argc, char **argv) {
                         out_file << "rms_error:\n" 
                                  << "  init: " << benchmark.consistency_rms_errors[submap_pair+"_init"] << endl 
                                  << "  final: " <<benchmark.consistency_rms_errors[min_benchmark_name] << endl;
-                        out_file << "std_all:\n"
-                                 << "  init: " << benchmark.std_grids_with_hits[submap_pair+"_init"] << endl
-                                 << "  final: " << benchmark.std_grids_with_hits[min_benchmark_name] << endl;
-                        out_file << "std_overlap:\n"
-                                 << "  init: " << benchmark.std_grids_with_overlaps[submap_pair+"_init"] << endl
-                                 << "  final: " << benchmark.std_grids_with_overlaps[min_benchmark_name] << endl;
+
+                        // std_metrics[name][hits][mean]; hits = (1,2), mean = (true, false)
+                        out_file << "std_all_points:\n"
+                                 << "  init: " << benchmark.std_metrics[submap_pair+"_init"][1][false] << endl
+                                 << "  final: " << benchmark.std_metrics[min_benchmark_name][1][false] << endl;
+                        out_file << "std_overlap_points:\n"
+                                 << "  init: " << benchmark.std_metrics[submap_pair+"_init"][2][false] << endl
+                                 << "  final: " << benchmark.std_metrics[min_benchmark_name][2][false] << endl;
+                        out_file << "std_all_mean:\n"
+                                 << "  init: " << benchmark.std_metrics[submap_pair+"_init"][1][true] << endl
+                                 << "  final: " << benchmark.std_metrics[min_benchmark_name][1][true] << endl;
+                        out_file << "std_overlap_mean:\n"
+                                 << "  init: " << benchmark.std_metrics[submap_pair+"_init"][2][true] << endl
+                                 << "  final: " << benchmark.std_metrics[min_benchmark_name][2][true] << endl;
+
                         out_file << "transform: [";
                         int num = 0;
                         for (float tf : final_transform.reshaped<RowMajor>()) {

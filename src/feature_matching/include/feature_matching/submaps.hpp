@@ -107,6 +107,10 @@ SubmapsVec parsePingsAUVlib(std_data::mbes_ping::PingsT& pings);
 
 SubmapsVec createSubmaps(SubmapsVec& pings, int submap_size);
 
+SubmapsVec createSubmapsWithMaximizedOverlap(SubmapsVec& pings, int submap_size, float thresh = 0.1);
+Eigen::Vector3f compute_euler_angle(const SubmapObj* submap_k, const SubmapObj* submap_prev);
+bool turning_ends(double x_lim, double x_curr, bool wait_until_x_smaller_than_x_lim);
+
 SubmapsVec createMap(SubmapsVec& pings);
 
 void transformSubmapObj(SubmapObj& submap, Isometry3f& poseDRt);
